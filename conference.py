@@ -37,12 +37,17 @@ from models import ConferenceQueryForm
 from models import ConferenceQueryForms
 from models import TeeShirtSize
 
+from models import Session
+from models import SessionForm
+
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
 from settings import IOS_CLIENT_ID
 from settings import ANDROID_AUDIENCE
 
 from utils import getUserId
+
+import pdb
 
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
@@ -82,6 +87,11 @@ CONF_GET_REQUEST = endpoints.ResourceContainer(
 CONF_POST_REQUEST = endpoints.ResourceContainer(
     ConferenceForm,
     websafeConferenceKey=messages.StringField(1),
+)
+
+SESS_POST_REQUEST = endpoints.ResourceContainer(
+    SessionForm,
+    websafeConferenceKey=messages.StringField(1)    
 )
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -550,5 +560,46 @@ class ConferenceApi(remote.Service):
             items=[self._copyConferenceToForm(conf, "") for conf in q]
         )
 
+
+    def _createSessionObject(self, request):
+        """Create or update session object, returning ConferenceForm/request."""
+        # preload necessary data items
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        user_id = getUserId(user)
+
+        # copy SessionForm/ProtoRPC Message into dict
+        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
+        if not data['name']:
+            raise endpoints.BadRequestException("Session 'name' field required")
+        # add default values for those missing (both data model & outbound Message)
+
+        # set seatsAvailable to be same as maxAttendees on creation
+        print data['websafeKey']
+        # update existing conference
+        c_key = ndb.Key(urlsafe=data['websafeKey'])
+        # # check that conference exists
+        if not c_key:
+            raise endpoints.NotFoundException(
+                'No conference found with key: %s' % data['websafeKey'])
+        del data['websafeKey']
+
+        s_id = Session.allocate_ids(size=1, parent=c_key)[0]
+        s_key = ndb.Key(Session, s_id, parent=c_key)
+        data['key'] = s_key
+        # create Conference, send email to organizer confirming
+        # creation of Conference & return (modified) ConferenceForm
+        Session(**data).put()
+        return request
+ 
+    @endpoints.method(SessionForm, SessionForm, path='session',
+            http_method='POST', name='createSession')
+    def createSession(self, request):
+        """Add session """
+        #open only to the organizer of the conference
+        return self._createSessionObject(request)
+
+    
 
 api = endpoints.api_server([ConferenceApi]) # register API
