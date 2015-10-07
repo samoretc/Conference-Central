@@ -39,6 +39,7 @@ from models import TeeShirtSize
 
 from models import Session
 from models import SessionForm
+from models import SessionForms
 
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -89,8 +90,8 @@ CONF_POST_REQUEST = endpoints.ResourceContainer(
     websafeConferenceKey=messages.StringField(1),
 )
 
-SESS_POST_REQUEST = endpoints.ResourceContainer(
-    SessionForm,
+SESS_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
     websafeConferenceKey=messages.StringField(1)    
 )
 
@@ -597,9 +598,33 @@ class ConferenceApi(remote.Service):
             http_method='POST', name='createSession')
     def createSession(self, request):
         """Add session """
-        #open only to the organizer of the conference
         return self._createSessionObject(request)
 
-    
+    def _copySessionToForm(self, session): 
+        """Copy relevant fields from Session to SessionForm."""
+        sf = SessionForm()
+        for field in sf.all_fields():
+            print 'field'
+            print field
+            print 'field name'
+            print field.name
+            if hasattr(session, field.name): 
+                setattr(sf, field.name, getattr( session, field.name) )
+            elif field.name == 'websafeKey':
+                setattr(sf, 'websafeKey', session.key.urlsafe())
+        sf.check_initialized()
+        return sf
+
+    @endpoints.method(SESS_GET_REQUEST, SessionForms,
+            path='conference/{websafeConferenceKey}/sessions',
+            http_method='GET', name='getConferenceSessions')
+    def getConferenceSessions(self, request):
+        """Given a conference, return all sessions"""
+        c_key = ndb.Key( urlsafe = request.websafeConferenceKey )
+        sessions_query = Session.query(ancestor=c_key)
+        session_forms = SessionForms( conference_name = c_key.get().name,
+            items = [ self._copySessionToForm(session) for session in sessions_query ] )
+        return session_forms
+
 
 api = endpoints.api_server([ConferenceApi]) # register API
