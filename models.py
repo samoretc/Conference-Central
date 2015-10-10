@@ -98,8 +98,9 @@ class SessionForm(messages.Message):
     conferenceName  = messages.StringField(8)
 
 class SessionQuery_1(messages.Message):
-    not_type = messages.StringField(1)
-    before_time = messages.StringField(2)
+    not_test_type = messages.StringField(1)
+    before_time   = messages.StringField(2)
+
     
 
 class ConferenceForms(messages.Message):

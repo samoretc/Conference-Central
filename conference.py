@@ -83,7 +83,7 @@ FIELDS =    {
             }
 
 CONF_GET_REQUEST = endpoints.ResourceContainer(
-    message_types.VoidMessage,
+    message_types.VoidMessage, ### Does this NEED to be a void message for GET requests? 
     websafeConferenceKey=messages.StringField(1),
 )
 
@@ -98,7 +98,7 @@ SESS_GET_REQUEST = endpoints.ResourceContainer(
 )
 
 SESS_BY_TYPE_GET = endpoints.ResourceContainer(
-    message_types.VoidMessage,
+    message_types.VoidMessage, 
     websafeConferenceKey=messages.StringField(1),
     type = messages.StringField(2) 
 )
@@ -119,9 +119,24 @@ WISHLIST_GET_REQUEST = endpoints.ResourceContainer(
 
 ### I was thinking about naming this something like SESS_BEFORE_TIME_NOT_OF_TYPE_GET but that seemed too long. what do you think?
 SESS_QUERY_1_GET = endpoints.ResourceContainer(
-    websafeConferenceKey=messages.StringField(1),
-    before_time = messages.StringField(2),
-    not_type = messages.StringField(3)
+        message_types.VoidMessage,
+   websafeConferenceKey=messages.StringField(1),
+   not_type =           messages.StringField(2), 
+   before_time =        messages.StringField(3),
+)
+
+SESS_QUERY_2_GET = endpoints.ResourceContainer(
+        message_types.VoidMessage,
+   websafeConferenceKey=messages.StringField(1),
+   speaker =           messages.StringField(2), 
+   minutes =        messages.IntegerField(3),
+)
+
+
+SESS_QUERY_3_GET = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    speaker = messages.StringField(1), 
+    city = messages.StringField(2)
 )
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -582,9 +597,9 @@ class ConferenceApi(remote.Service):
         # value = "London"
         # f = ndb.query.FilterNode(field, operator, value)
 
-        q = q.filter(Conference.city != "London")
-       # q = q.order(Conference.city)
-        q = q.order(Conference.name)        
+        q = q.filter(Conference.maxAttendees < 1000)
+        q = q.order(Conference.maxAttendees)
+        q = q.order(Conference.name) 
        # q = q.filter(Conference.topics!="Medical Innovations")
         # q = q.filter(Conference.month==6)
 
@@ -642,9 +657,13 @@ class ConferenceApi(remote.Service):
         sf = SessionForm()
         for field in sf.all_fields():
             if hasattr(session, field.name): 
-                setattr(sf, field.name, getattr( session, field.name) )
+                if field.name.endswith('Time'):
+                    setattr(sf, field.name,  str( getattr( session, field.name ) ) )
+                else:
+                    setattr(sf, field.name, getattr( session, field.name) )
             elif field.name == 'websafeKey':
                 setattr(sf, 'websafeKey', session.key.urlsafe())
+
         sf.check_initialized()
         return sf
 
@@ -725,18 +744,38 @@ class ConferenceApi(remote.Service):
         return session_forms
 
     @endpoints.method(SESS_QUERY_1_GET, SessionForms, 
-        path='conferences/{websafeConferenceKey}/beforetime/{before_time}/not_type/{not_type}', http_method='GET', name='getSessionsBeforeTimeNotOfType')
+        path='conferences/{websafeConferenceKey}/time/{before_time}/type/{not_type}', http_method='GET', name='getSessionsBeforeTimeNotOfType')
     def getSessionsBeforeTimeNotOfType(self, request): 
-       pass
+        c_key = ndb.Key(    urlsafe = request.websafeConferenceKey  )
+        q = Session.query(  ancestor = c_key )
+        before_time = datetime.strptime( request.before_time , "%H-%M").time() ### I didn't include a colon because it isn't allowed in URL. 
+        q = q.filter( Session.startTime < before_time )
+        q = q.order(Session.startTime)
+        q = q.order(Session.typeOfSession)
+        session_forms = SessionForms(
+            items = [ self._copySessionToForm(session) for session in q if session.typeOfSession != request.not_type ] ) 
+        return session_forms
 
-    @endpoints.method(message_types.VoidMessage, message_types.VoidMessage, 
-        path='sessions/getFirstBySpeaker', http_method='GET', name='getSessionsBySpeakerShorterThan')
+    @endpoints.method(SESS_QUERY_2_GET , SessionForms, 
+        path='conference/{websafeConferenceKey}/sessions/speaker/{speaker}/shorterthan/{minutes}', http_method='GET', name='getSessionsBySpeakerShorterThan')
     def getSessionsBySpeakerShorterThan(self, request): 
-        pass
+        c_key = ndb.Key( urlsafe = request.websafeConferenceKey)
+        q = Session.query( ancestor = c_key)
+        q = q.filter(ndb.AND(Session.speaker == request.speaker , Session.duration < request.minutes) )
+        session_forms = SessionForms(
+            items = [ self._copySessionToForm(session) for session in q])
+        return session_forms
+
     
-    @endpoints.method(message_types.VoidMessage, message_types.VoidMessage, 
-        path='sessions/byspeakerincity', http_method='GET', name='getSessionsBySpeakerInCity')
+    @endpoints.method(SESS_QUERY_3_GET, SessionForms, 
+        path='sessions/speaker/{speaker}/city/{city}', http_method='GET', name='getSessionsBySpeakerInCity')
     def getSessionsBySpeakerInCity(self, request): 
-        pass
+        q_c = Conference.query(Conference.city == request.city)
+        items = []
+        for conf in q_c: ### is there an easier way to do this than double for loops? 
+            q_s = Session.query(ancestor = conf.key).filter(Session.speaker == request.speaker)
+            for sess in q_s: 
+                items.append(self._copySessionToForm(sess))
+        return SessionForms(items = items)
 
 api = endpoints.api_server([ConferenceApi]) # register API
