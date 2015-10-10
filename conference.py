@@ -13,7 +13,7 @@ created by wesc on 2014 apr 21
 __author__ = 'wesc+api@google.com (Wesley Chun)'
 
 
-from datetime import datetime
+from datetime import datetime, time
 
 import endpoints
 from protorpc import messages
@@ -40,6 +40,8 @@ from models import TeeShirtSize
 from models import Session
 from models import SessionForm
 from models import SessionForms
+
+from models import SessionQuery_1
 
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -113,6 +115,13 @@ WISHLIST_POST_REQUEST = endpoints.ResourceContainer(
 
 WISHLIST_GET_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage
+)
+
+### I was thinking about naming this something like SESS_BEFORE_TIME_NOT_OF_TYPE_GET but that seemed too long. what do you think?
+SESS_QUERY_1_GET = endpoints.ResourceContainer(
+    websafeConferenceKey=messages.StringField(1),
+    before_time = messages.StringField(2),
+    not_type = messages.StringField(3)
 )
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -476,7 +485,7 @@ class ConferenceApi(remote.Service):
     @ndb.transactional(xg=True)
     def _conferenceRegistration(self, request, reg=True):
         """Register or unregister user for selected conference."""
-        retval = None
+        retval = Nonec
         prof = self._getProfileFromUser() # get user Profile
 
         # check if conf exists given websafeConfKey
@@ -572,10 +581,12 @@ class ConferenceApi(remote.Service):
         # operator = "="
         # value = "London"
         # f = ndb.query.FilterNode(field, operator, value)
-        # q = q.filter(f)
-        q = q.filter(Conference.city=="London")
-        q = q.filter(Conference.topics=="Medical Innovations")
-        q = q.filter(Conference.month==6)
+
+        q = q.filter(Conference.city != "London")
+       # q = q.order(Conference.city)
+        q = q.order(Conference.name)        
+       # q = q.filter(Conference.topics!="Medical Innovations")
+        # q = q.filter(Conference.month==6)
 
         return ConferenceForms(
             items=[self._copyConferenceToForm(conf, "") for conf in q]
@@ -592,6 +603,9 @@ class ConferenceApi(remote.Service):
 
         # copy SessionForm/ProtoRPC Message into dict
         data = {field.name: getattr(request, field.name) for field in request.all_fields()}
+
+        if data['startTime']:
+            data['startTime'] = datetime.strptime(data['startTime'], "%H:%M").time()
 
         if not data['name']:
             raise endpoints.BadRequestException("Session 'name' field required")
@@ -709,5 +723,20 @@ class ConferenceApi(remote.Service):
         session_forms = SessionForms(
                 items = [  self._copySessionToForm(session) for session in sessions ] )
         return session_forms
+
+    @endpoints.method(SESS_QUERY_1_GET, SessionForms, 
+        path='conferences/{websafeConferenceKey}/beforetime/{before_time}/not_type/{not_type}', http_method='GET', name='getSessionsBeforeTimeNotOfType')
+    def getSessionsBeforeTimeNotOfType(self, request): 
+       pass
+
+    @endpoints.method(message_types.VoidMessage, message_types.VoidMessage, 
+        path='sessions/getFirstBySpeaker', http_method='GET', name='getSessionsBySpeakerShorterThan')
+    def getSessionsBySpeakerShorterThan(self, request): 
+        pass
+    
+    @endpoints.method(message_types.VoidMessage, message_types.VoidMessage, 
+        path='sessions/byspeakerincity', http_method='GET', name='getSessionsBySpeakerInCity')
+    def getSessionsBySpeakerInCity(self, request): 
+        pass
 
 api = endpoints.api_server([ConferenceApi]) # register API
