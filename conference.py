@@ -55,8 +55,10 @@ import pdb
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
 MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
+MEMCACHE_FEATURED_SPEAKER_KEY = "FEATURED_SPEAKER"
 ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
+SPEAKER_TPL = ('At the %s conference, %s is presentating at the following sessions: %s')
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 DEFAULTS = {
@@ -644,6 +646,12 @@ class ConferenceApi(remote.Service):
         # create Conference, send email to organizer confirming
         # creation of Conference & return (modified) ConferenceForm
         Session(**data).put()
+        ### Need to 
+        q = Session.query( ancestor = c_key).filter(Session.speaker == data['speaker'])
+        if q.count() > 1: 
+            featured = SPEAKER_TPL % ( data['conferenceName'], data['speaker'],
+                ', '.join(sess.name for sess in q))
+            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, featured)
         return request
  
     @endpoints.method(SessionForm, SessionForm, path='session',
@@ -744,7 +752,8 @@ class ConferenceApi(remote.Service):
         return session_forms
 
     @endpoints.method(SESS_QUERY_1_GET, SessionForms, 
-        path='conferences/{websafeConferenceKey}/time/{before_time}/type/{not_type}', http_method='GET', name='getSessionsBeforeTimeNotOfType')
+        path='conferences/{websafeConferenceKey}/time/{before_time}/type/{not_type}', 
+        http_method='GET', name='getSessionsBeforeTimeNotOfType')
     def getSessionsBeforeTimeNotOfType(self, request): 
         c_key = ndb.Key(    urlsafe = request.websafeConferenceKey  )
         q = Session.query(  ancestor = c_key )
@@ -757,7 +766,8 @@ class ConferenceApi(remote.Service):
         return session_forms
 
     @endpoints.method(SESS_QUERY_2_GET , SessionForms, 
-        path='conference/{websafeConferenceKey}/sessions/speaker/{speaker}/shorterthan/{minutes}', http_method='GET', name='getSessionsBySpeakerShorterThan')
+        path='conference/{websafeConferenceKey}/sessions/speaker/{speaker}/shorterthan/{minutes}', 
+        http_method='GET', name='getSessionsBySpeakerShorterThan')
     def getSessionsBySpeakerShorterThan(self, request): 
         c_key = ndb.Key( urlsafe = request.websafeConferenceKey)
         q = Session.query( ancestor = c_key)
@@ -777,5 +787,8 @@ class ConferenceApi(remote.Service):
             for sess in q_s: 
                 items.append(self._copySessionToForm(sess))
         return SessionForms(items = items)
+
+    def getFeaturedSpeaker():
+        pass
 
 api = endpoints.api_server([ConferenceApi]) # register API
