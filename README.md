@@ -37,10 +37,10 @@ Task 1:
 To model Session, a Session kind was created. The Session kind has the following properties:
 -  name as a required StringProperty.
 -  highlights as a StringPropety. 
- - duration as a IntegerProperty
- - typeOfSession as a StringProperty.
- - startTime as a TimeProperty. 
- - conferenceName as a StringProperty.
+-  duration as a IntegerProperty
+-  typeOfSession as a StringProperty.
+-  startTime as a TimeProperty. 
+-  conferenceName as a StringProperty.
 
 To get data from the client, the SessionForm class was created. All of the above data is sent in with the SessionForm class, as well as the websafeurl key for the particular conference that the session is a part of. The conference is used as a parent for the particular session, so that queries are faster and easier. 
 
