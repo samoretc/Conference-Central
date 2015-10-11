@@ -34,7 +34,7 @@ App Engine application for the Udacity training course.
 Questions concering the project submission
 
 Task 1: 
-To model Session, a Session kind was created. The session kind has the following properties:
+To model Session, a Session kind was created. The Session kind has the following properties:
 -  name as a required StringProperty.
 -  highlights as a StringPropety. 
  - duration as a IntegerProperty
