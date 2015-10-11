@@ -31,5 +31,29 @@ App Engine application for the Udacity training course.
 [5]: https://localhost:8080/
 [6]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
 
+Questions concering the project submission
 
-Let’s say that you don't like workshops and you don't like sessions after 7 pm. How would you handle a query for all non-workshop sessions before 7 pm? What is the problem for implementing this query? What ways to solve it did you think of?
+Task 1: 
+To model Session, a Session kind was created. The session kind has the following properties:
+-  name as a required StringProperty.
+-  highlights as a StringPropety. 
+ - duration as a IntegerProperty
+ - typeOfSession as a StringProperty.
+ - startTime as a TimeProperty. 
+ - conferenceName as a StringProperty.
+
+To get data from the client, the SessionForm class was created. All of the above data is sent in with the SessionForm class, as well as the websafeurl key for the particular conference that the session is a part of. The conference is used as a parent for the particular session, so that queries are faster and easier. 
+
+Task 3: 
+
+Question: How would you handle a query for all non-workshop sessions before 7 pm? What is the problem for implementing this query?
+
+Answer: The problem with this query is that it would apply two inequality filters, and app engine does not allow more than one inequality filter for a query. To implement this query, I would first apply the one of the inequalities filter. I would then order the query object by the other condition. I would then iterate over the objects and determine individually if the other inequality filter was satisfied. The advantage of ordering the data first is that you it is more efficient, and then when you iterate over the data, you can break out of the loop as soon as the condition in no longer satisfied. I decided to implement this function. It's called getSessionsBeforeTimeNotOfType.
+
+Question: Implement two additional queries and describe why that are useful. 
+
+First Query: As a conference attendee, I might want to see a particular speaker very badly. However, my time is limited, and I would only like to see her presentation if its shorter than a certain length. Because of this, I decided to implement an endpoint that returns all sessions by a particular speaker that are shorter than a certain length. 
+
+Second Query: Let's say I'm not interested in a particular conference, but rather certain speaker. I want to see this speaker, but I can only see them in my hometown. For example, I know that Sebastian Thrun is going to have a few sesssions in San Francisco at few different conferences. I live in San Francisco, and I would like to compare these sessions. Because of this, I decided to implement a query that returns all sessions by a particular speaker in a particular city. 
+
+

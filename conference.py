@@ -766,11 +766,17 @@ class ConferenceApi(remote.Service):
         c_key = ndb.Key(    urlsafe = request.websafeConferenceKey  )
         q = Session.query(  ancestor = c_key )
         before_time = datetime.strptime( request.before_time , "%H-%M").time() ### I didn't include a colon because it isn't allowed in URL. I'm assuming the client will change the colon to a hyphon before sending the data to the server. 
-        q = q.filter( Session.startTime < before_time )
-        q = q.order(Session.startTime)
-        q = q.order(Session.typeOfSession)
+        q = q.filter( Session.typeOfSession != request.not_type  )\
+            .order(Session.startTime)\
+            .order(Session.typeOfSession) 
+        items = []
+        for session in q: 
+            if session.startTime < before_time:
+                items.append(session)
+            else:
+                break
         session_forms = SessionForms(
-            items = [ self._copySessionToForm(session) for session in q if session.typeOfSession != request.not_type ] ) 
+            items = items) 
         return session_forms
 
     @endpoints.method(SESS_QUERY_2_GET , SessionForms, 
