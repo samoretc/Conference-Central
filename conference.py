@@ -266,6 +266,7 @@ class ConferenceApi(remote.Service):
             http_method='POST', name='createConference')
     def createConference(self, request):
         """Create new conference."""
+        print 'rached'
         return self._createConferenceObject(request)
 
 
@@ -367,7 +368,6 @@ class ConferenceApi(remote.Service):
     def queryConferences(self, request):
         """Query for conferences."""
         conferences = self._getQuery(request)
-
         # need to fetch organiser displayName from profiles
         # get all keys and use get_multi for speed
         organisers = [(ndb.Key(Profile, conf.organizerUserId)) for conf in conferences]
@@ -375,6 +375,7 @@ class ConferenceApi(remote.Service):
 
         # put display names in a dict for easier fetching
         names = {}
+
         for profile in profiles:
             names[profile.key.id()] = profile.displayName
 
@@ -647,11 +648,16 @@ class ConferenceApi(remote.Service):
         # creation of Conference & return (modified) ConferenceForm
         Session(**data).put()
         ### Need to 
+        
         q = Session.query( ancestor = c_key).filter(Session.speaker == data['speaker'])
         if q.count() > 1: 
-            featured = SPEAKER_TPL % ( data['conferenceName'], data['speaker'],
+            featured_speaker_message = SPEAKER_TPL % ( data['conferenceName'], data['speaker'],
                 ', '.join(sess.name for sess in q))
-            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, featured)
+
+            taskqueue.add(params={'memcache_key': MEMCACHE_FEATURED_SPEAKER_KEY,
+                                'memcache_value': featured_speaker_message },
+                            url='/memcache/add')
+            
         return request
  
     @endpoints.method(SessionForm, SessionForm, path='session',
@@ -755,9 +761,11 @@ class ConferenceApi(remote.Service):
         path='conferences/{websafeConferenceKey}/time/{before_time}/type/{not_type}', 
         http_method='GET', name='getSessionsBeforeTimeNotOfType')
     def getSessionsBeforeTimeNotOfType(self, request): 
+        """Given a conference, return all sessions before time and not of type"""
+
         c_key = ndb.Key(    urlsafe = request.websafeConferenceKey  )
         q = Session.query(  ancestor = c_key )
-        before_time = datetime.strptime( request.before_time , "%H-%M").time() ### I didn't include a colon because it isn't allowed in URL. 
+        before_time = datetime.strptime( request.before_time , "%H-%M").time() ### I didn't include a colon because it isn't allowed in URL. I'm assuming the client will change the colon to a hyphon before sending the data to the server. 
         q = q.filter( Session.startTime < before_time )
         q = q.order(Session.startTime)
         q = q.order(Session.typeOfSession)
@@ -768,7 +776,8 @@ class ConferenceApi(remote.Service):
     @endpoints.method(SESS_QUERY_2_GET , SessionForms, 
         path='conference/{websafeConferenceKey}/sessions/speaker/{speaker}/shorterthan/{minutes}', 
         http_method='GET', name='getSessionsBySpeakerShorterThan')
-    def getSessionsBySpeakerShorterThan(self, request): 
+    def getSessionsBySpeakerShorterThan(self, request):
+        """Given a conference, return all sessions by a speaker and shorter than a specific length"""
         c_key = ndb.Key( urlsafe = request.websafeConferenceKey)
         q = Session.query( ancestor = c_key)
         q = q.filter(ndb.AND(Session.speaker == request.speaker , Session.duration < request.minutes) )
@@ -780,6 +789,7 @@ class ConferenceApi(remote.Service):
     @endpoints.method(SESS_QUERY_3_GET, SessionForms, 
         path='sessions/speaker/{speaker}/city/{city}', http_method='GET', name='getSessionsBySpeakerInCity')
     def getSessionsBySpeakerInCity(self, request): 
+        """Return all sessions by a certain speaker in a city"""
         q_c = Conference.query(Conference.city == request.city)
         items = []
         for conf in q_c: ### is there an easier way to do this than double for loops? 
@@ -788,7 +798,10 @@ class ConferenceApi(remote.Service):
                 items.append(self._copySessionToForm(sess))
         return SessionForms(items = items)
 
-    def getFeaturedSpeaker():
-        pass
+
+    @endpoints.method(message_types.VoidMessage, StringMessage,
+        path='getFeaturedSpeaker', http_method ='GET', name = 'getFeaturedSpeaker')
+    def getFeaturedSpeaker(self, request):
+        return StringMessage(data=memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or "")
 
 api = endpoints.api_server([ConferenceApi]) # register API
