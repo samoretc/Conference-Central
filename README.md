@@ -48,7 +48,7 @@ Task 3:
 
 Question: How would you handle a query for all non-workshop sessions before 7 pm? What is the problem for implementing this query?
 
-Answer: The problem with this query is that it would apply two inequality filters, and app engine does not allow more than one inequality filter for a query. To implement this query, I would first apply the one of the inequalities filter. I would then order the query object by the other condition. I would then iterate over the objects and determine individually if the other inequality filter was satisfied. The advantage of ordering the data first is that you it is more efficient, and then when you iterate over the data, you can break out of the loop as soon as the condition in no longer satisfied. I decided to implement this function. It's called getSessionsBeforeTimeNotOfType.
+Answer: The problem with this query is that it would apply two inequality filters, and app engine does not allow more than one inequality filter for a query. To implement this query, I would first apply the one of the inequalities filter. I would then iterate over the objects and determine individually if the other inequality filter was satisfied. I decided to implement this function. It's called getSessionsBeforeTimeNotOfType.
 
 Question: Implement two additional queries and describe why that are useful. 
 
