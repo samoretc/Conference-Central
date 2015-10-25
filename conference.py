@@ -765,7 +765,7 @@ class ConferenceApi(remote.Service):
 
         c_key = ndb.Key(    urlsafe = request.websafeConferenceKey  )
         q = Session.query(  ancestor = c_key )
-        before_time = datetime.strptime( request.before_time , "%H-%M").time() ### I didn't include a colon because it isn't allowed in URL. I'm assuming the client will change the colon to a hyphon before sending the data to the server. 
+        before_time = datetime.strptime( request.before_time , "%H-%M").time() 
         q = q.filter( Session.startTime < before_time )
         session_forms = SessionForms(
             items = [ self._copySessionToForm(session) for session in q if session.typeOfSession != request.not_type ] ) 
@@ -790,7 +790,7 @@ class ConferenceApi(remote.Service):
         """Return all sessions by a certain speaker in a city"""
         q_c = Conference.query(Conference.city == request.city)
         items = []
-        for conf in q_c: ### is there an easier way to do this than double for loops? 
+        for conf in q_c:  
             q_s = Session.query(ancestor = conf.key).filter(Session.speaker == request.speaker)
             for sess in q_s: 
                 items.append(self._copySessionToForm(sess))
