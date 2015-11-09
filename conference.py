@@ -647,7 +647,6 @@ class ConferenceApi(remote.Service):
         # create Conference, send email to organizer confirming
         # creation of Conference & return (modified) ConferenceForm
         Session(**data).put()
-        ### Need to 
         
         q = Session.query( ancestor = c_key).filter(Session.speaker == data['speaker'])
         if q.count() > 1: 
