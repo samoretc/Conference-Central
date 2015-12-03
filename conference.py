@@ -119,7 +119,6 @@ WISHLIST_GET_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage
 )
 
-### I was thinking about naming this something like SESS_BEFORE_TIME_NOT_OF_TYPE_GET but that seemed too long. what do you think?
 SESS_QUERY_1_GET = endpoints.ResourceContainer(
         message_types.VoidMessage,
    websafeConferenceKey=messages.StringField(1),
